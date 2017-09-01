@@ -1,0 +1,58 @@
+(setf p 152571978722786084351886931023496370376798999987339944199021200531651275691099103449347349897964635706112525455731825020638894818859922778593149300143162720366876072994268633705232631614015865065113917174134807989294330527442191261958994565247945255072784239755770729665527959042883079517088277506164871850439)
+
+(setf  q 147521976719041268733467288485176351894757998182920217874425681969830447338980333917821370916051260709883910633752027981630326988193070984505456700948150616796672915601007075205372397177359025857236701866904448906965019938049507857761886750656621746762474747080300831166523844026738913325930146507823506104359)
+
+(setf c 8511718779884002348933302329129034304748857434273552143349006561412761982574325566387289878631104742338583716487885551483795770878333568637517519439482152832740954108568568151340772337201643636336669393323584931481091714361927928549187423697803637825181374486997812604036706926194198296656150267412049091252088273904913718189248082391969963422192111264078757219427099935562601838047817410081362261577538573299114227343694888309834727224639741066786960337752762092049561527128427933146887521537659100047835461395832978920369260824158334744269055059394177455075510916989043073375102773439498560915413630238758363023648)
+
+(setf  e 65537)
+
+(defun extend-gcd (a b)
+  "return (x . y) | ax + by = 1"
+  (flet ((next-val (x1 x2 q)
+	   (- x1 (* x2 q))))
+    (loop for q = (/ (- a (mod a b)) b) then (/ (- z1 (mod z1 z2)) z2)
+	  for ztmp = (next-val a b q) then (next-val z1 z2 q)
+	  for z1 = a then z2
+	  for z2 = b then ztmp
+	  for xtmp = (next-val 1 0 q) then (next-val x1 x2 q)
+	  for x1 = 1 then x2
+	  for x2 = 0 then xtmp
+	  for ytmp = (next-val 0 1 q) then (next-val y1 y2 q)
+	  for y1 = 0 then y2
+	  for y2 = 1 then ytmp
+	  when (= z2 1)
+	    do (if (< x2 0)
+		   (return (cons (+ x2 b) (- y2 a)))
+		   (return (cons x2 y2))))))
+
+(defun mod-expt (base exp modulus)
+  "more effective expotential and modulus.
+calculate mod at every step of exp."
+  (if (< exp 0) ;; if exp < 0, cannot calc mod so simply return base^exp
+      (expt base exp)
+      (loop for acc = 1 then (if (evenp e) acc (mod (* acc b) modulus))
+	    for b = (mod base modulus) then (if (evenp e) (mod (expt b 2) modulus) b)
+	    for e = exp then (if (evenp e) (/ e 2) (1- e))
+	    when (= e 0)
+	      do (return acc))))
+
+(defun get-private (p q e)
+  (let ((coprimes (extend-gcd e (* (1- p) (1- q)))))
+    (if (> (first coprimes) 0)
+	(first coprimes)
+	(second coprimes))))
+
+(defun decrypto (p q e c)
+  (mod-expt c (get-private p q e) (* p q)))
+
+(defun decode (encoded-num)
+  (labels ((inner-loop (num acc)
+	     (if (> num 0)
+		 (inner-loop (truncate num (expt 2 8))
+			     (cons (mod num (expt 2 8)) acc))
+		 acc)))
+    (coerce (mapcar
+	     (lambda (x) (code-char x)) (inner-loop encoded-num nil))
+	    'string)))
+
+(decode (decrypto p q e c))
